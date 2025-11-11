@@ -23,6 +23,14 @@ pub fn resolve_library(
             format!("lib{}", name)
         };
 
+        // 1) Try dlopen-style resolution first by passing just the soname
+        //    (no path) and letting the dynamic loader perform its standard
+        //    search. This is especially important on macOS where many
+        //    system libraries live in the dyld cache and may not exist on disk.
+        if let Some(opened) = try_dlopen_candidates(&name) {
+            return Ok(opened);
+        }
+
         let mut all_paths = Vec::new();
         all_paths.extend(search_paths.iter().map(PathBuf::from));
         all_paths.extend(get_system_library_paths());
@@ -95,33 +103,22 @@ fn find_library_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
     };
 
     for ext in extensions {
-        let exact = dir.join(format!("{}.{}", name, ext));
-        if exact.exists() {
-            return Some(exact);
-        }
-
+        // Prefer versioned filenames like `libNAME.so.6` or `libNAME.so.1.2`
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    // Accept versioned filenames like `libNAME.so.6` or `libNAME.so.1.2`
-                    // but avoid false positives like `libNAME-extra.so` or unrelated `libNAMEclient.so`
-                    if file_name == format!("{}.{}", name, ext) {
-                        return Some(path.clone());
-                    }
-
                     // Must be immediately followed by a dot after the base name (no dashes or letters)
                     if let Some(rest) = file_name.strip_prefix(name) {
                         if rest.starts_with('.') {
                             // Ensure it contains .ext and only numeric version segments after it
                             if let Some(ext_pos) = file_name.find(&format!(".{}", ext)) {
                                 let after_ext = &file_name[ext_pos + 1 + ext.len()..];
-                                let valid_suffix = after_ext.is_empty()
-                                    || (after_ext.starts_with('.')
-                                        && after_ext
-                                            .chars()
-                                            .all(|c| c == '.' || c.is_ascii_digit()));
-                                if valid_suffix {
+                                // versioned: something after .ext and only . and digits
+                                let is_versioned = !after_ext.is_empty()
+                                    && after_ext.starts_with('.')
+                                    && after_ext.chars().all(|c| c == '.' || c.is_ascii_digit());
+                                if is_versioned {
                                     return Some(path);
                                 }
                             }
@@ -129,6 +126,18 @@ fn find_library_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
                     }
                 }
             }
+        }
+
+        // Fall back to exact match, but avoid GNU ld scripts (non-ELF text files) on Linux
+        let exact = dir.join(format!("{}.{}", name, ext));
+        if exact.exists() {
+            if cfg!(target_os = "linux") && ext == "so" {
+                if !is_linux_elf(&exact) {
+                    // Skip linker scripts like libm.so that are text
+                    continue;
+                }
+            }
+            return Some(exact);
         }
     }
 
@@ -155,4 +164,55 @@ pub fn find_symbol(lib: &Library, name: &str) -> Result<*mut std::ffi::c_void> {
             .map_err(|e| anyhow!("Symbol not found: {} ({})", name, e))?;
         Ok(*symbol)
     }
+}
+
+// Try direct dlopen by candidate sonames without a path, relying on platform rules
+// Returns the candidate name wrapped as a PathBuf if opening succeeded (handle dropped immediately)
+fn try_dlopen_candidates(base_name: &str) -> Option<PathBuf> {
+    let mut candidates: Vec<String> = Vec::new();
+    if cfg!(target_os = "macos") {
+        candidates.push(format!("{}.dylib", base_name));
+        candidates.push(format!("{}.so", base_name));
+    } else if cfg!(target_os = "linux") {
+        candidates.push(format!("{}.so", base_name));
+    } else if cfg!(target_os = "windows") {
+        // On Windows, library naming is less uniform; allow both with and without lib prefix
+        // Note: passing a bare name relies on system search paths (System32, PATH, etc.)
+        let bn = base_name.trim_start_matches("lib");
+        candidates.push(format!("{}.dll", bn));
+        candidates.push(format!("{}.dll", base_name));
+    } else {
+        candidates.push(format!("{}.so", base_name));
+    }
+
+    for cand in candidates {
+        // Attempt to open and immediately drop; if successful, return the name
+        unsafe {
+            if let Ok(lib) = Library::new(&cand) {
+                drop(lib);
+                return Some(PathBuf::from(cand));
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn is_linux_elf(path: &Path) -> bool {
+    use std::fs::File;
+    use std::io::Read;
+    let mut f = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut buf = [0u8; 4];
+    if f.read(&mut buf).ok() != Some(4) {
+        return false;
+    }
+    buf == [0x7F, b'E', b'L', b'F']
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_linux_elf(_path: &Path) -> bool {
+    true
 }
