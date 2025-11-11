@@ -1,4 +1,4 @@
-# libcall v2.0
+# libcall
 
 Call C functions from shared libraries directly from the command line.
 
