@@ -4,8 +4,12 @@ use std::ffi::c_void;
 
 pub struct LuaCallback {
     lua: Lua,
+    // original signature retained for potential future reflective output
+    #[allow(dead_code)]
     signature: String,
     return_type: String,
+    // parsed arg types kept for future validation / arity checks
+    #[allow(dead_code)]
     arg_types: Vec<String>,
 }
 
@@ -22,7 +26,7 @@ impl LuaCallback {
         } else {
             args_str
                 .split(',')
-                .map(|s| s.trim().split_whitespace().next().unwrap_or("").to_string())
+                .map(|s| s.split_whitespace().next().unwrap_or("").to_string())
                 .collect()
         };
 
@@ -134,20 +138,35 @@ impl LuaCallback {
             args_str
                 .split(',')
                 .map(|s| {
-                    let parts: Vec<&str> = s.trim().split_whitespace().collect();
+                    let parts: Vec<&str> = s.split_whitespace().collect();
                     if parts.len() >= 2 {
                         parts[1].to_string()
                     } else {
-                        format!("arg{}", parts.len())
+                        // fallback name based on position will be substituted below
+                        "".to_string()
                     }
                 })
                 .collect()
         };
 
-        let function_def = if arg_names.is_empty() {
+        // Replace empty fallback names with deterministic argN identifiers
+        let mut arg_names_final = Vec::new();
+        for (i, name) in arg_names.iter().enumerate() {
+            if name.is_empty() {
+                arg_names_final.push(format!("arg{}", i));
+            } else {
+                arg_names_final.push(name.clone());
+            }
+        }
+
+        let function_def = if arg_names_final.is_empty() {
             format!("function callback() {} end", body)
         } else {
-            format!("function callback({}) {} end", arg_names.join(", "), body)
+            format!(
+                "function callback({}) {} end",
+                arg_names_final.join(", "),
+                body
+            )
         };
 
         lua.load(&function_def).exec()?;
@@ -172,6 +191,7 @@ impl LuaCallback {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub fn return_type(&self) -> &str {
         &self.return_type
     }

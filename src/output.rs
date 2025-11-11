@@ -1,6 +1,5 @@
 use crate::ffi::CallResult;
 use crate::types::Value;
-use serde_yaml;
 
 pub fn print_result_human(result: &CallResult, _function: &str) {
     if let Some(ref ret_val) = result.return_value {

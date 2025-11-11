@@ -1,10 +1,9 @@
-use crate::parser::{Argument, CallSpec};
-use crate::types::{parse_type_name, Type, Value};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileCallSpec {
     pub library: String,
@@ -14,6 +13,7 @@ pub struct FileCallSpec {
     pub returns: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileArg {
     #[serde(default)]
@@ -32,11 +32,13 @@ pub struct FileArg {
     pub body: Option<String>,
 }
 
+#[allow(dead_code)]
 pub fn load_yaml_file(path: &Path) -> Result<FileCallSpec> {
     let content = fs::read_to_string(path)?;
     serde_yaml::from_str(&content).map_err(|e| anyhow!("Failed to parse YAML file: {}", e))
 }
 
+#[allow(dead_code)]
 pub fn load_json_file(path: &Path) -> Result<FileCallSpec> {
     let content = fs::read_to_string(path)?;
     serde_json::from_str(&content).map_err(|e| anyhow!("Failed to parse JSON file: {}", e))
