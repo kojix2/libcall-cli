@@ -131,11 +131,9 @@ fn find_library_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
         // Fall back to exact match, but avoid GNU ld scripts (non-ELF text files) on Linux
         let exact = dir.join(format!("{}.{}", name, ext));
         if exact.exists() {
-            if cfg!(target_os = "linux") && ext == "so" {
-                if !is_linux_elf(&exact) {
-                    // Skip linker scripts like libm.so that are text
-                    continue;
-                }
+            if cfg!(target_os = "linux") && ext == "so" && !is_linux_elf(&exact) {
+                // Skip linker scripts like libm.so that are text
+                continue;
             }
             return Some(exact);
         }
