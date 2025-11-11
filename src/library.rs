@@ -104,8 +104,28 @@ fn find_library_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if file_name.starts_with(name) && file_name.contains(&format!(".{}", ext)) {
-                        return Some(path);
+                    // Accept versioned filenames like `libNAME.so.6` or `libNAME.so.1.2`
+                    // but avoid false positives like `libNAME-extra.so` or unrelated `libNAMEclient.so`
+                    if file_name == format!("{}.{}", name, ext) {
+                        return Some(path.clone());
+                    }
+
+                    // Must be immediately followed by a dot after the base name (no dashes or letters)
+                    if let Some(rest) = file_name.strip_prefix(name) {
+                        if rest.starts_with('.') {
+                            // Ensure it contains .ext and only numeric version segments after it
+                            if let Some(ext_pos) = file_name.find(&format!(".{}", ext)) {
+                                let after_ext = &file_name[ext_pos + 1 + ext.len()..];
+                                let valid_suffix = after_ext.is_empty()
+                                    || (after_ext.starts_with('.')
+                                        && after_ext
+                                            .chars()
+                                            .all(|c| c == '.' || c.is_ascii_digit()));
+                                if valid_suffix {
+                                    return Some(path);
+                                }
+                            }
+                        }
                     }
                 }
             }
