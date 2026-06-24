@@ -3,7 +3,7 @@
 [![Test](https://github.com/kojix2/libcall-cli/actions/workflows/test.yml/badge.svg)](https://github.com/kojix2/libcall-cli/actions/workflows/test.yml)
 [![Lines of Code](https://img.shields.io/endpoint?url=https%3A%2F%2Ftokei.kojix2.net%2Fbadge%2Fgithub%2Fkojix2%2Flibcall-cli%2Flines)](https://tokei.kojix2.net/github/kojix2/libcall-cli)
 
-Call C functions in shared libraries from the command line.
+A portable CLI for calling a focused set of C functions without libffi
 
 ## Install
 
