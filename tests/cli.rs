@@ -4,6 +4,7 @@ fn libcall() -> Command {
     Command::new(env!("CARGO_BIN_EXE_libcall"))
 }
 
+#[cfg(not(windows))]
 fn libc_name() -> &'static str {
     if cfg!(target_os = "macos") {
         "System"
@@ -13,6 +14,75 @@ fn libc_name() -> &'static str {
 }
 
 #[test]
+fn reports_version() {
+    let output = libcall()
+        .arg("--version")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("libcall "));
+}
+
+#[test]
+fn shows_help() {
+    let output = libcall()
+        .arg("--help")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
+}
+
+#[test]
+#[cfg(windows)]
+fn windows_ucrt_passes_i32_arguments_by_value() {
+    let output = libcall()
+        .arg("-lucrtbase")
+        .arg("abs")
+        .arg("i32:-42")
+        .arg(":i32")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "42");
+}
+
+#[test]
+#[cfg(windows)]
+fn windows_ucrt_passes_cstr_arguments_as_pointers() {
+    let output = libcall()
+        .arg("-lucrtbase")
+        .arg("strlen")
+        .arg("hello")
+        .arg(":usize")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5");
+}
+
+#[test]
+#[cfg(not(windows))]
 fn passes_i32_arguments_by_value() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -31,6 +101,7 @@ fn passes_i32_arguments_by_value() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn passes_cstr_arguments_as_pointers() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -49,6 +120,7 @@ fn passes_cstr_arguments_as_pointers() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn flushes_c_stdout_before_printing_return_value() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -74,6 +146,7 @@ fn flushes_c_stdout_before_printing_return_value() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn supports_i64_return_values() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -92,6 +165,7 @@ fn supports_i64_return_values() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn infers_i64_for_large_integer_literals() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -110,6 +184,7 @@ fn infers_i64_for_large_integer_literals() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn supports_isize_return_values() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -128,6 +203,7 @@ fn supports_isize_return_values() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn supports_u64_return_values() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -146,6 +222,7 @@ fn supports_u64_return_values() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn supports_non_qsort_void_functions() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -165,6 +242,7 @@ fn supports_non_qsort_void_functions() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn rejects_unsupported_callback_signatures() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -183,6 +261,7 @@ fn rejects_unsupported_callback_signatures() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn parses_callback_with_empty_body() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -203,6 +282,7 @@ fn parses_callback_with_empty_body() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn rejects_callback_with_unsupported_empty_arg_list() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
@@ -221,6 +301,7 @@ fn rejects_callback_with_unsupported_empty_arg_list() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn rejects_malformed_callback_like_tokens() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
