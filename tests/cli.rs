@@ -47,3 +47,57 @@ fn passes_cstr_arguments_as_pointers() {
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5");
 }
+
+#[test]
+fn supports_i64_return_values() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("atoll")
+        .arg("cstr:12345")
+        .arg(":i64")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "12345");
+}
+
+#[test]
+fn supports_isize_return_values() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("labs")
+        .arg("isize:-5")
+        .arg(":isize")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5");
+}
+
+#[test]
+fn supports_u64_return_values() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("strlen")
+        .arg("abc")
+        .arg(":u64")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "3");
+}
