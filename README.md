@@ -1,10 +1,9 @@
 # libcall
 
-`libcall` calls C functions from shared libraries from the command line.
+[![Test](https://github.com/kojix2/libcall-cli/actions/workflows/test.yml/badge.svg)](https://github.com/kojix2/libcall-cli/actions/workflows/test.yml)
+[![Lines of Code](https://img.shields.io/endpoint?url=https%3A%2F%2Ftokei.kojix2.net%2Fbadge%2Fgithub%2Fkojix2%2Flibcall-cli%2Flines)](https://tokei.kojix2.net/github/kojix2/libcall-cli)
 
-It can be useful for quick checks, scripts, and experiments with C APIs.
-
-Safety: `libcall` runs native code in the current process. Lua callback bodies also run in the current process. Use only trusted libraries, spec files, and callback code.
+Call C functions in shared libraries from the command line.
 
 ## Install
 
