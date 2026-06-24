@@ -5,6 +5,10 @@ use anyhow::{anyhow, Result};
 use std::ffi::{c_void, CString};
 use std::ptr::NonNull;
 
+unsafe extern "C" {
+    fn fflush(stream: *mut c_void) -> i32;
+}
+
 #[derive(Debug)]
 pub struct CallResult {
     pub return_value: Option<Value>,
@@ -182,6 +186,7 @@ pub fn execute_call(
     }
 
     let return_value = unsafe { call_function_dynamic(func_ptr, &call_args, return_type)? };
+    flush_c_stdio();
     drop(callback_guard.take());
 
     let mut output_values = Vec::new();
@@ -202,6 +207,12 @@ pub fn execute_call(
         return_value,
         output_values,
     })
+}
+
+fn flush_c_stdio() {
+    unsafe {
+        fflush(std::ptr::null_mut());
+    }
 }
 
 fn create_array_storage(elem_type: Type, values: &[Value]) -> Result<ArrayStorage> {

@@ -49,6 +49,31 @@ fn passes_cstr_arguments_as_pointers() {
 }
 
 #[test]
+fn flushes_c_stdout_before_printing_return_value() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("puts")
+        .arg("hi")
+        .arg(":i32")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut lines = stdout.lines();
+    assert_eq!(lines.next(), Some("hi"));
+    assert!(
+        lines.next().is_some(),
+        "missing return value line: {stdout}"
+    );
+}
+
+#[test]
 fn supports_i64_return_values() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
