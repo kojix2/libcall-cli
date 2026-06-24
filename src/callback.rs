@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use mlua::prelude::*;
+use std::cell::Cell;
 use std::ffi::c_void;
 
 pub struct LuaCallback {
@@ -204,21 +205,25 @@ impl LuaCallback {
     }
 }
 
-static mut GLOBAL_CALLBACK: Option<*const LuaCallback> = None;
+thread_local! {
+    static CURRENT_CALLBACK: Cell<Option<*const LuaCallback>> = const { Cell::new(None) };
+}
 
 pub unsafe extern "C" fn callback_wrapper_i32_2ptr(a: *mut c_void, b: *mut c_void) -> i32 {
-    if let Some(callback_ptr) = GLOBAL_CALLBACK {
-        let callback = &*callback_ptr;
-        callback.call_i32(&[a, b]).unwrap_or(0)
-    } else {
-        0
-    }
+    CURRENT_CALLBACK.with(|current| {
+        if let Some(callback_ptr) = current.get() {
+            let callback = unsafe { &*callback_ptr };
+            callback.call_i32(&[a, b]).unwrap_or(0)
+        } else {
+            0
+        }
+    })
 }
 
-pub unsafe fn set_global_callback(callback: *const LuaCallback) {
-    GLOBAL_CALLBACK = Some(callback);
+pub fn set_global_callback(callback: *const LuaCallback) {
+    CURRENT_CALLBACK.with(|current| current.set(Some(callback)));
 }
 
-pub unsafe fn clear_global_callback() {
-    GLOBAL_CALLBACK = None;
+pub fn clear_global_callback() {
+    CURRENT_CALLBACK.with(|current| current.set(None));
 }

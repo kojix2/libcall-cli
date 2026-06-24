@@ -3,6 +3,7 @@ use crate::parser::Argument;
 use crate::types::{Type, Value};
 use anyhow::{anyhow, Result};
 use std::ffi::{c_void, CString};
+use std::ptr::NonNull;
 
 #[derive(Debug)]
 pub struct CallResult {
@@ -57,15 +58,53 @@ impl CallArg {
     }
 }
 
+struct ArrayStorage {
+    ptr: NonNull<c_void>,
+    layout: std::alloc::Layout,
+}
+
+impl ArrayStorage {
+    fn as_ptr(&self) -> *mut c_void {
+        self.ptr.as_ptr()
+    }
+}
+
+impl Drop for ArrayStorage {
+    fn drop(&mut self) {
+        unsafe {
+            std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, self.layout);
+        }
+    }
+}
+
+struct CallbackGuard {
+    active: bool,
+}
+
+impl CallbackGuard {
+    fn new() -> Self {
+        Self { active: true }
+    }
+}
+
+impl Drop for CallbackGuard {
+    fn drop(&mut self) {
+        if self.active {
+            clear_global_callback();
+        }
+    }
+}
+
 pub fn execute_call(
     func_ptr: *mut c_void,
     args: &mut [Argument],
     return_type: Type,
 ) -> Result<CallResult> {
     let mut call_args: Vec<CallArg> = Vec::new();
-    let mut arg_storage: Vec<Box<dyn std::any::Any>> = Vec::new();
+    let mut array_storage: Vec<ArrayStorage> = Vec::new();
     let mut cstrings: Vec<CString> = Vec::new();
     let mut callback_storage: Vec<Box<LuaCallback>> = Vec::new();
+    let mut callback_guard = None;
 
     for arg in args.iter_mut() {
         match &mut arg.value {
@@ -117,17 +156,22 @@ pub fn execute_call(
             Value::Array {
                 elem_type, values, ..
             } => {
-                let ptr = create_array_storage(*elem_type, values)?;
-                arg_storage.push(Box::new(ptr));
-                call_args.push(CallArg::Ptr(ptr));
+                let storage = create_array_storage(*elem_type, values)?;
+                call_args.push(CallArg::Ptr(storage.as_ptr()));
+                array_storage.push(storage);
             }
             Value::Callback { signature, body } => {
+                if !callback_storage.is_empty() {
+                    return Err(anyhow!(
+                        "Only one callback argument is currently supported per call"
+                    ));
+                }
+
                 let callback = Box::new(LuaCallback::new(signature.clone(), body.clone())?);
                 let callback_ptr = callback.as_ref() as *const LuaCallback;
 
-                unsafe {
-                    set_global_callback(callback_ptr);
-                }
+                set_global_callback(callback_ptr);
+                callback_guard = Some(CallbackGuard::new());
 
                 let wrapper_ptr = callback.get_c_wrapper();
                 callback_storage.push(callback);
@@ -138,10 +182,7 @@ pub fn execute_call(
     }
 
     let return_value = unsafe { call_function_dynamic(func_ptr, &call_args, return_type)? };
-
-    unsafe {
-        clear_global_callback();
-    }
+    drop(callback_guard.take());
 
     let mut output_values = Vec::new();
     for (idx, arg) in args.iter().enumerate() {
@@ -163,28 +204,27 @@ pub fn execute_call(
     })
 }
 
-fn create_array_storage(elem_type: Type, values: &[Value]) -> Result<*mut c_void> {
+fn create_array_storage(elem_type: Type, values: &[Value]) -> Result<ArrayStorage> {
     let size = elem_type.size();
     let total_size = size * values.len();
 
     let layout = std::alloc::Layout::from_size_align(total_size, size)
         .map_err(|e| anyhow!("Failed to create layout: {}", e))?;
 
-    let ptr = unsafe { std::alloc::alloc(layout) as *mut c_void };
+    let ptr = NonNull::new(unsafe { std::alloc::alloc(layout) as *mut c_void })
+        .ok_or_else(|| anyhow!("Failed to allocate memory for array"))?;
 
-    if ptr.is_null() {
-        return Err(anyhow!("Failed to allocate memory for array"));
-    }
+    let storage = ArrayStorage { ptr, layout };
 
     for (i, value) in values.iter().enumerate() {
         let offset = i * size;
         unsafe {
-            let dest = (ptr as *mut u8).add(offset);
+            let dest = (storage.as_ptr() as *mut u8).add(offset);
             write_value_to_ptr(dest as *mut c_void, value)?;
         }
     }
 
-    Ok(ptr)
+    Ok(storage)
 }
 
 unsafe fn write_value_to_ptr(ptr: *mut c_void, value: &Value) -> Result<()> {
