@@ -519,19 +519,13 @@ unsafe fn call_function_dynamic(
         Type::F64 => Ok(Some(Value::F64(call_with_return!(f64)))),
         Type::Ptr => Ok(Some(Value::Ptr(call_with_return!(*mut c_void)))),
         Type::CStr => {
-            type CStrFunc1 = unsafe extern "C" fn(*mut c_void) -> *const std::ffi::c_char;
-
-            let result = match args {
-                [CallArg::Ptr(a)] => {
-                    let func = std::mem::transmute::<*mut c_void, CStrFunc1>(func_ptr);
-                    let ptr = func(*a);
-                    if ptr.is_null() {
-                        String::new()
-                    } else {
-                        std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned()
-                    }
-                }
-                _ => return Err(unsupported_signature(return_type, args)),
+            let ptr = call_with_return!(*mut c_void);
+            let result = if ptr.is_null() {
+                String::new()
+            } else {
+                std::ffi::CStr::from_ptr(ptr as *const std::ffi::c_char)
+                    .to_string_lossy()
+                    .into_owned()
             };
             Ok(Some(Value::CStr(result)))
         }

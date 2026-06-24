@@ -121,6 +121,26 @@ fn passes_cstr_arguments_as_pointers() {
 
 #[test]
 #[cfg(not(windows))]
+fn supports_cstr_return_with_multiple_arguments() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("strchr")
+        .arg("cstr:hello")
+        .arg("i32:108")
+        .arg(":cstr")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "llo");
+}
+
+#[test]
+#[cfg(not(windows))]
 fn flushes_c_stdout_before_printing_return_value() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
