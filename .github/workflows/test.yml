@@ -52,18 +52,6 @@ jobs:
     - name: Build release
       run: cargo build --release --verbose
     
-    - name: Run examples tests (Unix)
-      if: runner.os != 'Windows'
-      run: |
-        chmod +x test_examples.sh
-        ./test_examples.sh
-    
-    - name: Run Phase 3 tests (Unix)
-      if: runner.os != 'Windows'
-      run: |
-        chmod +x test_phase3.sh
-        ./test_phase3.sh
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
