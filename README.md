@@ -8,8 +8,8 @@ Call C functions in shared libraries from the command line.
 ## Install
 
 ```bash
-git clone https://github.com/kojix2/rust-libcall.git
-cd rust-libcall
+git clone https://github.com/kojix2/libcall-cli
+cd libcall-cli
 cargo build --release
 sudo cp target/release/libcall /usr/local/bin/
 ```
