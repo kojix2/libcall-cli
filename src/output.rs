@@ -5,7 +5,6 @@ use crate::types::Value;
 pub enum OutputFormat {
     Human,
     Json,
-    Yaml,
 }
 
 impl OutputFormat {
@@ -13,7 +12,6 @@ impl OutputFormat {
         match value {
             "human" => Some(Self::Human),
             "json" => Some(Self::Json),
-            "yaml" => Some(Self::Yaml),
             _ => None,
         }
     }
@@ -28,15 +26,9 @@ pub fn print_result(
 ) {
     match format {
         OutputFormat::Human => print_result_human(result),
-        OutputFormat::Json | OutputFormat::Yaml => {
+        OutputFormat::Json => {
             let output = result_to_json(result, library, function, args);
-            match format {
-                OutputFormat::Json => {
-                    println!("{}", serde_json::to_string_pretty(&output).unwrap())
-                }
-                OutputFormat::Yaml => println!("{}", serde_yml::to_string(&output).unwrap()),
-                OutputFormat::Human => unreachable!(),
-            }
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
         }
     }
 }
@@ -192,5 +184,15 @@ fn value_to_json(value: &Value) -> serde_json::Value {
             json!(arr)
         }
         Value::Callback { signature, .. } => json!(signature),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_format_rejects_yaml() {
+        assert!(OutputFormat::parse("yaml").is_none());
     }
 }

@@ -56,8 +56,8 @@ Common options:
 | --- | --- |
 | `-l NAME`, `-lNAME` | Search for a library such as `libm`, `libc`, or `libSystem` |
 | `-L PATH`, `-LPATH` | Add a library search path |
-| `--format human|json|yaml` | Select output format |
-| `--spec FILE` | Load a `.json`, `.yaml`, or `.yml` call spec |
+| `--format human|json` | Select output format |
+| `--spec FILE` | Load a `.json` call spec |
 | `--dry-run` | Parse and show the call without running it |
 | `--verbose` | Print extra information |
 
@@ -150,32 +150,31 @@ Example JSON output:
 }
 ```
 
-YAML is also available:
-
-```bash
-libcall --format yaml -lm sqrt 16.0 :f64
-```
-
 ## Spec Files
 
-Use `--spec` for calls stored in JSON or YAML. The file extension selects the parser.
+Use `--spec` for calls stored in JSON.
 
-```yaml
-library: m
-function: sqrt
-args:
-  - type: f64
-    value: 16.0
-returns: f64
+```json
+{
+  "library": "m",
+  "function": "sqrt",
+  "args": [
+    {
+      "type": "f64",
+      "value": 16.0
+    }
+  ],
+  "returns": "f64"
+}
 ```
 
 Run it:
 
 ```bash
-libcall --spec call.yaml
+libcall --spec call.json
 ```
 
-Spec libraries without `/`, `\`, or `.` are treated like `-l` names. For example, `library: m` searches for libm.
+Spec libraries without `/`, `\`, or `.` are treated like `-l` names. For example, `"library": "m"` searches for libm.
 
 ## Lua Callbacks
 

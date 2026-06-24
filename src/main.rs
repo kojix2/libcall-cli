@@ -23,11 +23,11 @@ struct Args {
     #[arg(short = 'L', value_name = "PATH")]
     lib_paths: Vec<String>,
 
-    /// Load call specification from JSON or YAML file
+    /// Load call specification from JSON file
     #[arg(long, value_name = "FILE")]
     spec: Option<String>,
 
-    /// Result format: json, yaml, or human (default)
+    /// Result format: json or human (default)
     #[arg(long, value_name = "FORMAT")]
     format: Option<String>,
 

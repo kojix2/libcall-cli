@@ -30,11 +30,6 @@ pub struct FileArg {
     pub body: Option<String>,
 }
 
-pub fn load_yaml_file(path: &Path) -> Result<FileCallSpec> {
-    let content = fs::read_to_string(path)?;
-    serde_yml::from_str(&content).map_err(|e| anyhow!("Failed to parse YAML file: {}", e))
-}
-
 pub fn load_json_file(path: &Path) -> Result<FileCallSpec> {
     let content = fs::read_to_string(path)?;
     serde_json::from_str(&content).map_err(|e| anyhow!("Failed to parse JSON file: {}", e))
@@ -42,15 +37,12 @@ pub fn load_json_file(path: &Path) -> Result<FileCallSpec> {
 
 pub fn load_spec_file(path: &Path) -> Result<FileCallSpec> {
     match path.extension().and_then(|ext| ext.to_str()) {
-        Some("yaml") | Some("yml") => load_yaml_file(path),
         Some("json") => load_json_file(path),
         Some(ext) => Err(anyhow!(
-            "Unsupported spec file extension: .{} (expected .json, .yaml, or .yml)",
+            "Unsupported spec file extension: .{} (expected .json)",
             ext
         )),
-        None => Err(anyhow!(
-            "Spec file must have an extension: .json, .yaml, or .yml"
-        )),
+        None => Err(anyhow!("Spec file must have a .json extension")),
     }
 }
 
@@ -218,5 +210,11 @@ mod tests {
         };
 
         assert!(file_arg_to_token(&arg).is_err());
+    }
+
+    #[test]
+    fn load_spec_file_rejects_non_json_extensions() {
+        let err = load_spec_file(Path::new("call.yaml")).unwrap_err();
+        assert!(err.to_string().contains("expected .json"));
     }
 }
