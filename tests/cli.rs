@@ -120,3 +120,21 @@ fn supports_non_qsort_void_functions() {
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("[0] 4u8 = [0x00, 0x00, 0x00, 0x00]"));
 }
+
+#[test]
+fn rejects_unsupported_callback_signatures() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("qsort")
+        .arg("@3i32:3,1,2")
+        .arg("usize:3")
+        .arg("usize:4")
+        .arg("'f64(ptr a, ptr b){ return 0.0 }'")
+        .arg(":void")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("Only i32(ptr, ptr) callbacks are currently supported"));
+}

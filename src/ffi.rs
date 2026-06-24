@@ -169,11 +169,11 @@ pub fn execute_call(
 
                 let callback = Box::new(LuaCallback::new(signature.clone(), body.clone())?);
                 let callback_ptr = callback.as_ref() as *const LuaCallback;
+                let wrapper_ptr = callback.get_c_wrapper()?;
 
                 set_global_callback(callback_ptr);
                 callback_guard = Some(CallbackGuard::new());
 
-                let wrapper_ptr = callback.get_c_wrapper();
                 callback_storage.push(callback);
 
                 call_args.push(CallArg::Ptr(wrapper_ptr));

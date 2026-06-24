@@ -9,8 +9,6 @@ pub struct LuaCallback {
     #[allow(dead_code)]
     signature: String,
     return_type: String,
-    // parsed arg types kept for future validation / arity checks
-    #[allow(dead_code)]
     arg_types: Vec<String>,
 }
 
@@ -197,11 +195,26 @@ impl LuaCallback {
         &self.return_type
     }
 
-    pub fn get_c_wrapper(&self) -> *mut c_void {
-        match self.return_type.as_str() {
-            "i32" | "int" | "int32" | "int32_t" => callback_wrapper_i32_2ptr as *mut c_void,
-            _ => std::ptr::null_mut(),
+    pub fn get_c_wrapper(&self) -> Result<*mut c_void> {
+        if self.has_i32_2ptr_signature() {
+            Ok(callback_wrapper_i32_2ptr as *mut c_void)
+        } else {
+            Err(anyhow!(
+                "Unsupported callback signature: {}. Only i32(ptr, ptr) callbacks are currently supported",
+                self.signature
+            ))
         }
+    }
+
+    fn has_i32_2ptr_signature(&self) -> bool {
+        matches!(
+            self.return_type.as_str(),
+            "i32" | "int" | "int32" | "int32_t"
+        ) && self.arg_types.len() == 2
+            && self
+                .arg_types
+                .iter()
+                .all(|arg_type| matches!(arg_type.as_str(), "ptr" | "pointer" | "voidp" | "void*"))
     }
 }
 

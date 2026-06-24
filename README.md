@@ -181,9 +181,9 @@ Ntype:val1,val2,...
 @4i32:4,2,3,1    # int32_t arr[4] = {4,2,3,1}; qsort(arr, ...)
 ```
 
-### Callback Functions (Phase 3 - NEW!)
+### Callback Functions
 
-Callback functions are written in Lua and can be passed to C functions like `qsort`.
+Callback functions are written in Lua. Currently, callback support is limited to a single `i32(ptr, ptr)` callback per call, which covers `qsort`-style comparators.
 
 #### Syntax
 
@@ -192,6 +192,7 @@ Callback functions are written in Lua and can be passed to C functions like `qso
 ```
 
 **Important:** The callback string must be quoted with single quotes inside the shell argument.
+Unsupported callback signatures fail before the C function is called.
 
 **Examples:**
 ```bash
@@ -456,7 +457,7 @@ Error: Array length mismatch: expected 4 elements, got 3
 - **Library Resolver** (`library.rs`): Dynamic library loading and symbol resolution
 - **FFI Executor** (`ffi.rs`): Foreign function interface calls using direct trampolines
 - **Output Formatter** (`output.rs`): Human-readable and JSON output
-- **Callback Bridge** (`callback.rs`): Lua-based callback support (planned)
+- **Callback Bridge** (`callback.rs`): Lua-based qsort-style callback support
 
 ## Development Status
 
@@ -470,7 +471,7 @@ Error: Array length mismatch: expected 4 elements, got 3
 - ✅ Input arrays (`Ntype:values`)
 - ✅ Output arrays (`@Ntype`)
 - ✅ Inout arrays (`@Ntype:values`)
-- ✅ **Lua callback functions** (NEW in Phase 3!)
+- ✅ **Lua qsort-style callback functions** (NEW in Phase 3!)
 - ✅ **Callback integration with qsort** (NEW in Phase 3!)
 - ✅ JSON output format
 - ✅ **YAML output format** (NEW in Phase 3!)
