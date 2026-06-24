@@ -166,6 +166,10 @@ pub fn infer_type(value: &str) -> Result<Type> {
         return Ok(Type::I64);
     }
 
+    if value.parse::<u64>().is_ok() {
+        return Ok(Type::U64);
+    }
+
     if value.parse::<f64>().is_ok() {
         return Ok(Type::F64);
     }
@@ -258,6 +262,16 @@ mod tests {
     fn infer_type_uses_i64_for_large_integers() {
         assert_eq!(infer_type("3000000000").unwrap(), Type::I64);
         assert_eq!(infer_type("-3000000000").unwrap(), Type::I64);
+    }
+
+    #[test]
+    fn infer_type_uses_u64_for_unsigned_large_integers() {
+        assert_eq!(infer_type("18446744073709551615").unwrap(), Type::U64);
+    }
+
+    #[test]
+    fn infer_type_uses_f64_for_values_beyond_u64() {
+        assert_eq!(infer_type("18446744073709551616").unwrap(), Type::F64);
     }
 
     #[test]
