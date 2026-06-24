@@ -11,6 +11,20 @@ pub struct LuaCallback {
     arg_types: Vec<String>,
 }
 
+fn lua_error(error: mlua::Error) -> anyhow::Error {
+    anyhow!(error.to_string())
+}
+
+fn set_lua_function<F, A, R>(lua: &Lua, name: &str, function: F) -> Result<()>
+where
+    F: Fn(&Lua, A) -> mlua::Result<R> + mlua::MaybeSend + 'static,
+    A: mlua::FromLuaMulti,
+    R: mlua::IntoLuaMulti,
+{
+    let function = lua.create_function(function).map_err(lua_error)?;
+    lua.globals().set(name, function).map_err(lua_error)
+}
+
 impl LuaCallback {
     pub fn new(signature: String, body: String) -> Result<Self> {
         let (return_type, args_part) = signature
@@ -30,105 +44,69 @@ impl LuaCallback {
 
         let lua = Lua::new();
 
-        lua.globals().set(
-            "i8",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const i8) };
-                Ok(value as i64)
-            })?,
-        )?;
+        set_lua_function(&lua, "i8", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const i8) };
+            Ok(value as i64)
+        })?;
 
-        lua.globals().set(
-            "u8",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const u8) };
-                Ok(value as i64)
-            })?,
-        )?;
+        set_lua_function(&lua, "u8", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const u8) };
+            Ok(value as i64)
+        })?;
 
-        lua.globals().set(
-            "i16",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const i16) };
-                Ok(value as i64)
-            })?,
-        )?;
+        set_lua_function(&lua, "i16", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const i16) };
+            Ok(value as i64)
+        })?;
 
-        lua.globals().set(
-            "u16",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const u16) };
-                Ok(value as i64)
-            })?,
-        )?;
+        set_lua_function(&lua, "u16", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const u16) };
+            Ok(value as i64)
+        })?;
 
-        lua.globals().set(
-            "i32",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const i32) };
-                Ok(value)
-            })?,
-        )?;
+        set_lua_function(&lua, "i32", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const i32) };
+            Ok(value)
+        })?;
 
-        lua.globals().set(
-            "u32",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const u32) };
-                Ok(value as i64)
-            })?,
-        )?;
+        set_lua_function(&lua, "u32", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const u32) };
+            Ok(value as i64)
+        })?;
 
-        lua.globals().set(
-            "i64",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const i64) };
-                Ok(value)
-            })?,
-        )?;
+        set_lua_function(&lua, "i64", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const i64) };
+            Ok(value)
+        })?;
 
-        lua.globals().set(
-            "f32",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const f32) };
-                Ok(value as f64)
-            })?,
-        )?;
+        set_lua_function(&lua, "f32", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const f32) };
+            Ok(value as f64)
+        })?;
 
-        lua.globals().set(
-            "f64",
-            lua.create_function(|_, ptr: usize| {
-                let value = unsafe { *(ptr as *const f64) };
-                Ok(value)
-            })?,
-        )?;
+        set_lua_function(&lua, "f64", |_, ptr: usize| {
+            let value = unsafe { *(ptr as *const f64) };
+            Ok(value)
+        })?;
 
-        lua.globals().set(
-            "cstr",
-            lua.create_function(|_, ptr: usize| {
-                let s = unsafe {
-                    std::ffi::CStr::from_ptr(ptr as *const i8)
-                        .to_string_lossy()
-                        .into_owned()
-                };
-                Ok(s)
-            })?,
-        )?;
+        set_lua_function(&lua, "cstr", |_, ptr: usize| {
+            let s = unsafe {
+                std::ffi::CStr::from_ptr(ptr as *const i8)
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            Ok(s)
+        })?;
 
-        lua.globals().set(
-            "write_i32",
-            lua.create_function(|_, (ptr, val): (usize, i32)| {
-                unsafe { *(ptr as *mut i32) = val };
-                Ok(())
-            })?,
-        )?;
+        set_lua_function(&lua, "write_i32", |_, (ptr, val): (usize, i32)| {
+            unsafe { *(ptr as *mut i32) = val };
+            Ok(())
+        })?;
 
-        lua.globals().set(
-            "write_f64",
-            lua.create_function(|_, (ptr, val): (usize, f64)| {
-                unsafe { *(ptr as *mut f64) = val };
-                Ok(())
-            })?,
-        )?;
+        set_lua_function(&lua, "write_f64", |_, (ptr, val): (usize, f64)| {
+            unsafe { *(ptr as *mut f64) = val };
+            Ok(())
+        })?;
 
         let arg_names: Vec<String> = if args_str.is_empty() {
             Vec::new()
@@ -167,7 +145,7 @@ impl LuaCallback {
             )
         };
 
-        lua.load(&function_def).exec()?;
+        lua.load(&function_def).exec().map_err(lua_error)?;
 
         Ok(LuaCallback {
             lua,
@@ -178,14 +156,16 @@ impl LuaCallback {
     }
 
     pub fn call_i32(&self, args: &[*mut c_void]) -> Result<i32> {
-        let func: LuaFunction = self.lua.globals().get("callback")?;
+        let func: LuaFunction = self.lua.globals().get("callback").map_err(lua_error)?;
 
         let lua_args: Vec<LuaValue> = args
             .iter()
             .map(|ptr| LuaValue::Integer(*ptr as i64))
             .collect();
 
-        let result: i32 = func.call(LuaMultiValue::from_vec(lua_args))?;
+        let result: i32 = func
+            .call(LuaMultiValue::from_vec(lua_args))
+            .map_err(lua_error)?;
         Ok(result)
     }
 
