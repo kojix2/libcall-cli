@@ -19,7 +19,8 @@ lazy_static! {
     static ref RETURN_TYPE_RE: Regex =
         Regex::new(r"^:(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr|void)$")
             .unwrap();
-    static ref CALLBACK_RE: Regex = Regex::new(r"^'(.+)\((.+)\)\{(.+)\}'$").unwrap();
+    static ref CALLBACK_RE: Regex = Regex::new(r"^'(.+)\((.*)\)\{(.*)\}'$").unwrap();
+    static ref CALLBACK_LIKE_RE: Regex = Regex::new(r"^'.*\(.*\).*\{.*\}.*'$").unwrap();
 }
 
 #[derive(Debug)]
@@ -98,6 +99,10 @@ pub fn parse_type_token(token: &str) -> Result<Argument> {
             },
             is_output: false,
         });
+    }
+
+    if CALLBACK_LIKE_RE.is_match(token) {
+        return Err(anyhow!("Invalid callback specification: {}", token));
     }
 
     if let Some(captures) = TYPED_VALUE_RE.captures(token) {

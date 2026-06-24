@@ -181,3 +181,58 @@ fn rejects_unsupported_callback_signatures() {
     assert!(String::from_utf8_lossy(&output.stderr)
         .contains("Only i32(ptr, ptr) callbacks are currently supported"));
 }
+
+#[test]
+fn parses_callback_with_empty_body() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("qsort")
+        .arg("@1i32:1")
+        .arg("usize:1")
+        .arg("usize:4")
+        .arg("'i32(ptr a, ptr b){}'")
+        .arg(":void")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn rejects_callback_with_unsupported_empty_arg_list() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("qsort")
+        .arg("@1i32:1")
+        .arg("usize:1")
+        .arg("usize:4")
+        .arg("'i32(){ return 0 }'")
+        .arg(":void")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("Only i32(ptr, ptr) callbacks are currently supported"));
+}
+
+#[test]
+fn rejects_malformed_callback_like_tokens() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("qsort")
+        .arg("@1i32:1")
+        .arg("usize:1")
+        .arg("usize:4")
+        .arg("'i32(ptr a, ptr b){ return 0 } trailing'")
+        .arg(":void")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Invalid callback specification"));
+}
