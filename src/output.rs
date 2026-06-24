@@ -1,7 +1,47 @@
 use crate::ffi::CallResult;
 use crate::types::Value;
 
-pub fn print_result_human(result: &CallResult, _function: &str) {
+#[derive(Clone, Copy)]
+pub enum OutputFormat {
+    Human,
+    Json,
+    Yaml,
+}
+
+impl OutputFormat {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "human" => Some(Self::Human),
+            "json" => Some(Self::Json),
+            "yaml" => Some(Self::Yaml),
+            _ => None,
+        }
+    }
+}
+
+pub fn print_result(
+    result: &CallResult,
+    library: &str,
+    function: &str,
+    args: &[crate::parser::Argument],
+    format: OutputFormat,
+) {
+    match format {
+        OutputFormat::Human => print_result_human(result),
+        OutputFormat::Json | OutputFormat::Yaml => {
+            let output = result_to_json(result, library, function, args);
+            match format {
+                OutputFormat::Json => {
+                    println!("{}", serde_json::to_string_pretty(&output).unwrap())
+                }
+                OutputFormat::Yaml => println!("{}", serde_yml::to_string(&output).unwrap()),
+                OutputFormat::Human => unreachable!(),
+            }
+        }
+    }
+}
+
+fn print_result_human(result: &CallResult) {
     if let Some(ref ret_val) = result.return_value {
         print_value(ret_val);
         println!();
@@ -83,12 +123,12 @@ fn print_array(value: &Value) {
     }
 }
 
-pub fn print_result_json(
+fn result_to_json(
     result: &CallResult,
     library: &str,
     function: &str,
     args: &[crate::parser::Argument],
-) {
+) -> serde_json::Value {
     use serde_json::json;
 
     let args_json: Vec<_> = args
@@ -120,63 +160,13 @@ pub fn print_result_json(
         })
         .collect();
 
-    let output = json!({
+    json!({
         "library": library,
         "function": function,
         "args": args_json,
         "return": return_json,
         "outputs": outputs_json,
-    });
-
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
-}
-
-pub fn print_result_yaml(
-    result: &CallResult,
-    library: &str,
-    function: &str,
-    args: &[crate::parser::Argument],
-) {
-    use serde_json::json;
-
-    let args_yaml: Vec<_> = args
-        .iter()
-        .map(|arg| {
-            json!({
-                "type": arg.value.get_type().to_string(),
-                "value": value_to_json(&arg.value),
-            })
-        })
-        .collect();
-
-    let return_yaml = result.return_value.as_ref().map(|v| {
-        json!({
-            "type": v.get_type().to_string(),
-            "value": value_to_json(v),
-        })
-    });
-
-    let outputs_yaml: Vec<_> = result
-        .output_values
-        .iter()
-        .map(|(idx, val)| {
-            json!({
-                "index": idx,
-                "type": val.get_type().to_string(),
-                "value": value_to_json(val),
-            })
-        })
-        .collect();
-
-    let output = json!({
-        "library": library,
-        "function": function,
-        "args": args_yaml,
-        "return": return_yaml,
-        "outputs": outputs_yaml,
-    });
-
-    println!("{}", serde_yaml::to_string(&output).unwrap());
+    })
 }
 
 fn value_to_json(value: &Value) -> serde_json::Value {

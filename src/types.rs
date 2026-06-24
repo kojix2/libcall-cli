@@ -100,17 +100,8 @@ pub enum Value {
     F64(f64),
     Ptr(*mut std::ffi::c_void),
     CStr(String),
-    Array {
-        elem_type: Type,
-        values: Vec<Value>,
-        #[allow(dead_code)]
-        is_output: bool,
-    },
-    Callback {
-        signature: String,
-        #[allow(dead_code)]
-        body: String,
-    },
+    Array { elem_type: Type, values: Vec<Value> },
+    Callback { signature: String, body: String },
 }
 
 impl Value {

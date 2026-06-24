@@ -269,11 +269,7 @@ fn read_array_from_ptr(ptr: *mut c_void, elem_type: Type, count: usize) -> Resul
         values.push(value);
     }
 
-    Ok(Value::Array {
-        elem_type,
-        values,
-        is_output: true,
-    })
+    Ok(Value::Array { elem_type, values })
 }
 
 unsafe fn read_value_from_ptr(ptr: *mut c_void, ty: Type) -> Result<Value> {

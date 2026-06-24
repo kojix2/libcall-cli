@@ -1,27 +1,29 @@
 use crate::types::{infer_type, parse_array_values, parse_type_name, parse_value, Type, Value};
 use anyhow::{anyhow, Result};
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref OUTPUT_SCALAR_RE: Regex =
-        Regex::new(r"^@(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr)$").unwrap();
-    static ref OUTPUT_ARRAY_RE: Regex = Regex::new(
-        r"^@(\d+)(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr)(?::(.+))?$"
-    )
-    .unwrap();
-    static ref INPUT_ARRAY_RE: Regex =
-        Regex::new(r"^(\d+)(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr):(.+)$")
-            .unwrap();
-    static ref TYPED_VALUE_RE: Regex =
-        Regex::new(r"^(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr|callback):(.+)$")
-            .unwrap();
-    static ref RETURN_TYPE_RE: Regex =
-        Regex::new(r"^:(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr|void)$")
-            .unwrap();
-    static ref CALLBACK_RE: Regex = Regex::new(r"^'(.+)\((.*)\)\{(.*)\}'$").unwrap();
-    static ref CALLBACK_LIKE_RE: Regex = Regex::new(r"^'.*\(.*\).*\{.*\}.*'$").unwrap();
-}
+static OUTPUT_SCALAR_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^@(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr)$").unwrap()
+});
+static OUTPUT_ARRAY_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^@(\d+)(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr)(?::(.+))?$")
+        .unwrap()
+});
+static INPUT_ARRAY_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(\d+)(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr):(.+)$").unwrap()
+});
+static TYPED_VALUE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr|callback):(.+)$")
+        .unwrap()
+});
+static RETURN_TYPE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^:(i8|u8|i16|u16|i32|u32|i64|u64|isize|usize|f32|f64|cstr|ptr|void)$").unwrap()
+});
+static CALLBACK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^'(.+)\((.*)\)\{(.*)\}'$").unwrap());
+static CALLBACK_LIKE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^'.*\(.*\).*\{.*\}.*'$").unwrap());
 
 #[derive(Debug)]
 pub struct Argument {
@@ -44,7 +46,6 @@ pub fn parse_type_token(token: &str) -> Result<Argument> {
             value: Value::Array {
                 elem_type,
                 values: vec![Value::default_for_type(elem_type)],
-                is_output: true,
             },
             is_output: true,
         });
@@ -61,11 +62,7 @@ pub fn parse_type_token(token: &str) -> Result<Argument> {
         };
 
         return Ok(Argument {
-            value: Value::Array {
-                elem_type,
-                values,
-                is_output: true,
-            },
+            value: Value::Array { elem_type, values },
             is_output: true,
         });
     }
@@ -76,11 +73,7 @@ pub fn parse_type_token(token: &str) -> Result<Argument> {
         let values = parse_array_values(&captures[3], elem_type, count)?;
 
         return Ok(Argument {
-            value: Value::Array {
-                elem_type,
-                values,
-                is_output: false,
-            },
+            value: Value::Array { elem_type, values },
             is_output: false,
         });
     }

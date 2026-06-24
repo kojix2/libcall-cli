@@ -159,27 +159,16 @@ fn main() -> Result<()> {
 
     let result = ffi::execute_call(func_ptr, &mut call_spec.args, call_spec.return_type)?;
 
-    match args.format.as_deref().unwrap_or("human") {
-        "json" => {
-            output::print_result_json(
-                &result,
-                &lib_path.display().to_string(),
-                &function,
-                &call_spec.args,
-            );
-        }
-        "yaml" => {
-            output::print_result_yaml(
-                &result,
-                &lib_path.display().to_string(),
-                &function,
-                &call_spec.args,
-            );
-        }
-        "human" => {
-            output::print_result_human(&result, &function);
-        }
-        format => return Err(anyhow::anyhow!("Unknown format: {}", format)),
+    let format_name = args.format.as_deref().unwrap_or("human");
+    match output::OutputFormat::parse(format_name) {
+        Some(format) => output::print_result(
+            &result,
+            &lib_path.display().to_string(),
+            &function,
+            &call_spec.args,
+            format,
+        ),
+        None => return Err(anyhow::anyhow!("Unknown format: {}", format_name)),
     }
 
     Ok(())

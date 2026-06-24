@@ -6,7 +6,6 @@ use std::ffi::c_void;
 pub struct LuaCallback {
     lua: Lua,
     // original signature retained for potential future reflective output
-    #[allow(dead_code)]
     signature: String,
     return_type: String,
     arg_types: Vec<String>,
@@ -188,11 +187,6 @@ impl LuaCallback {
 
         let result: i32 = func.call(LuaMultiValue::from_vec(lua_args))?;
         Ok(result)
-    }
-
-    #[allow(dead_code)]
-    pub fn return_type(&self) -> &str {
-        &self.return_type
     }
 
     pub fn get_c_wrapper(&self) -> Result<*mut c_void> {
