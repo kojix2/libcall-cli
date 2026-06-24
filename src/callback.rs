@@ -91,7 +91,7 @@ impl LuaCallback {
 
         set_lua_function(&lua, "cstr", |_, ptr: usize| {
             let s = unsafe {
-                std::ffi::CStr::from_ptr(ptr as *const i8)
+                std::ffi::CStr::from_ptr(ptr as *const std::ffi::c_char)
                     .to_string_lossy()
                     .into_owned()
             };

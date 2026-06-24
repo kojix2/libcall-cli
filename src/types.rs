@@ -64,7 +64,7 @@ impl Type {
 
 pub fn parse_type_name(name: &str) -> Result<Type> {
     match name.to_lowercase().as_str() {
-        "i8" | "char" | "int8" | "int8_t" => Ok(Type::I8),
+        "i8" | "int8" | "int8_t" => Ok(Type::I8),
         "u8" | "uchar" | "uint8" | "uint8_t" | "byte" => Ok(Type::U8),
         "i16" | "short" | "int16" | "int16_t" => Ok(Type::I16),
         "u16" | "ushort" | "uint16" | "uint16_t" => Ok(Type::U16),
@@ -272,6 +272,12 @@ mod tests {
     #[test]
     fn infer_type_uses_f64_for_values_beyond_u64() {
         assert_eq!(infer_type("18446744073709551616").unwrap(), Type::F64);
+    }
+
+    #[test]
+    fn parse_type_name_keeps_char_pointer_but_rejects_plain_char() {
+        assert_eq!(parse_type_name("char*").unwrap(), Type::CStr);
+        assert!(parse_type_name("char").is_err());
     }
 
     #[test]
