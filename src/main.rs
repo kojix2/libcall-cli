@@ -198,3 +198,33 @@ fn split_spec_library(library: &str) -> (Option<String>, Option<String>) {
         (Some(library.to_string()), None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_spec_library_accepts_dash_l_form() {
+        assert_eq!(split_spec_library("-lm"), (Some("m".to_string()), None));
+    }
+
+    #[test]
+    fn split_spec_library_treats_plain_name_as_library_name() {
+        assert_eq!(split_spec_library("m"), (Some("m".to_string()), None));
+    }
+
+    #[test]
+    fn split_spec_library_treats_paths_as_library_paths() {
+        assert_eq!(
+            split_spec_library("./libtest.so"),
+            (None, Some("./libtest.so".to_string()))
+        );
+        assert_eq!(
+            split_spec_library("C:\\Windows\\System32\\ucrtbase.dll"),
+            (
+                None,
+                Some("C:\\Windows\\System32\\ucrtbase.dll".to_string())
+            )
+        );
+    }
+}

@@ -252,3 +252,33 @@ pub fn parse_array_values(
         .map(|part| parse_value(part.trim(), elem_type))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn infer_type_uses_i32_for_small_integers() {
+        assert_eq!(infer_type("42").unwrap(), Type::I32);
+        assert_eq!(infer_type("-42").unwrap(), Type::I32);
+    }
+
+    #[test]
+    fn infer_type_uses_i64_for_large_integers() {
+        assert_eq!(infer_type("3000000000").unwrap(), Type::I64);
+        assert_eq!(infer_type("-3000000000").unwrap(), Type::I64);
+    }
+
+    #[test]
+    fn parse_array_values_rejects_wrong_length() {
+        let err = parse_array_values("1,2,3", Type::I32, 4).unwrap_err();
+        assert!(err.to_string().contains("Array length mismatch"));
+    }
+
+    #[test]
+    fn parse_array_values_parses_typed_values() {
+        let values = parse_array_values("1,2", Type::I32, 2).unwrap();
+
+        assert!(matches!(values.as_slice(), [Value::I32(1), Value::I32(2)]));
+    }
+}

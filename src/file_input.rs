@@ -150,3 +150,77 @@ fn json_value_to_token(value: &serde_json::Value) -> Result<String> {
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn spec_arg_tokens_builds_input_and_return_tokens() {
+        let spec = FileCallSpec {
+            library: "m".to_string(),
+            function: "sqrt".to_string(),
+            args: vec![FileArg {
+                name: None,
+                arg_type: "f64".to_string(),
+                value: Some(json!(16.0)),
+                count: None,
+                mode: None,
+                signature: None,
+                body: None,
+            }],
+            returns: "f64".to_string(),
+        };
+
+        assert_eq!(spec_arg_tokens(&spec).unwrap(), vec!["f64:16.0", ":f64"]);
+    }
+
+    #[test]
+    fn file_arg_to_token_builds_output_array() {
+        let arg = FileArg {
+            name: None,
+            arg_type: "u8".to_string(),
+            value: None,
+            count: Some(4),
+            mode: Some("output".to_string()),
+            signature: None,
+            body: None,
+        };
+
+        assert_eq!(file_arg_to_token(&arg).unwrap(), "@4u8");
+    }
+
+    #[test]
+    fn file_arg_to_token_builds_callback() {
+        let arg = FileArg {
+            name: None,
+            arg_type: "callback".to_string(),
+            value: None,
+            count: None,
+            mode: None,
+            signature: Some("i32(ptr a, ptr b)".to_string()),
+            body: Some("return i32(a) - i32(b)".to_string()),
+        };
+
+        assert_eq!(
+            file_arg_to_token(&arg).unwrap(),
+            "'i32(ptr a, ptr b){ return i32(a) - i32(b) }'"
+        );
+    }
+
+    #[test]
+    fn file_arg_to_token_rejects_scalar_inout() {
+        let arg = FileArg {
+            name: None,
+            arg_type: "i32".to_string(),
+            value: Some(json!(1)),
+            count: None,
+            mode: Some("inout".to_string()),
+            signature: None,
+            body: None,
+        };
+
+        assert!(file_arg_to_token(&arg).is_err());
+    }
+}

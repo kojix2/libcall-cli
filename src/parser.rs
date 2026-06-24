@@ -153,3 +153,56 @@ pub fn parse_call_spec(function: String, arg_tokens: Vec<String>) -> Result<Call
         return_type,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_output_array_token() {
+        let arg = parse_type_token("@4u8").unwrap();
+
+        assert!(arg.is_output);
+        match arg.value {
+            Value::Array {
+                elem_type, values, ..
+            } => {
+                assert_eq!(elem_type, Type::U8);
+                assert_eq!(values.len(), 4);
+            }
+            other => panic!("expected array, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_callback_with_empty_body() {
+        let arg = parse_type_token("'i32(ptr a, ptr b){}'").unwrap();
+
+        match arg.value {
+            Value::Callback { signature, body } => {
+                assert_eq!(signature, "i32(ptr a, ptr b)");
+                assert_eq!(body, "");
+            }
+            other => panic!("expected callback, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reject_malformed_callback_like_token() {
+        let err = parse_type_token("'i32(ptr a, ptr b){ return 0 } trailing'").unwrap_err();
+        assert!(err.to_string().contains("Invalid callback specification"));
+    }
+
+    #[test]
+    fn parse_call_spec_extracts_return_type() {
+        let spec = parse_call_spec(
+            "pow".to_string(),
+            vec!["2.0".to_string(), "3.0".to_string(), ":f64".to_string()],
+        )
+        .unwrap();
+
+        assert_eq!(spec.function, "pow");
+        assert_eq!(spec.args.len(), 2);
+        assert_eq!(spec.return_type, Type::F64);
+    }
+}
