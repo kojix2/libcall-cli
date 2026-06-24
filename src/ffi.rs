@@ -349,27 +349,113 @@ unsafe fn call_function_dynamic(
         }};
     }
 
-    match return_type {
-        Type::Void => {
-            type VoidFunc0 = unsafe extern "C" fn();
-            type VoidFunc1Ptr = unsafe extern "C" fn(*mut c_void);
-            type VoidFunc4 = unsafe extern "C" fn(*mut c_void, usize, usize, *mut c_void);
-
+    macro_rules! call_void {
+        () => {{
             match args {
                 [] => {
-                    let func = std::mem::transmute::<*mut c_void, VoidFunc0>(func_ptr);
-                    func();
+                    type Func = unsafe extern "C" fn();
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)()
+                }
+                [CallArg::I8(a)] => {
+                    type Func = unsafe extern "C" fn(i8);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U8(a)] => {
+                    type Func = unsafe extern "C" fn(u8);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::I16(a)] => {
+                    type Func = unsafe extern "C" fn(i16);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U16(a)] => {
+                    type Func = unsafe extern "C" fn(u16);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::I32(a)] => {
+                    type Func = unsafe extern "C" fn(i32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U32(a)] => {
+                    type Func = unsafe extern "C" fn(u32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::I64(a)] => {
+                    type Func = unsafe extern "C" fn(i64);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U64(a)] => {
+                    type Func = unsafe extern "C" fn(u64);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Isize(a)] => {
+                    type Func = unsafe extern "C" fn(isize);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Usize(a)] => {
+                    type Func = unsafe extern "C" fn(usize);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::F32(a)] => {
+                    type Func = unsafe extern "C" fn(f32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::F64(a)] => {
+                    type Func = unsafe extern "C" fn(f64);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
                 }
                 [CallArg::Ptr(a)] => {
-                    let func = std::mem::transmute::<*mut c_void, VoidFunc1Ptr>(func_ptr);
-                    func(*a);
+                    type Func = unsafe extern "C" fn(*mut c_void);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Ptr(a), CallArg::Ptr(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, *mut c_void);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::I32(a), CallArg::I32(b)] => {
+                    type Func = unsafe extern "C" fn(i32, i32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::F32(a), CallArg::F32(b)] => {
+                    type Func = unsafe extern "C" fn(f32, f32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::F64(a), CallArg::F64(b)] => {
+                    type Func = unsafe extern "C" fn(f64, f64);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::F64(a), CallArg::Ptr(b)] => {
+                    type Func = unsafe extern "C" fn(f64, *mut f64);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b as *mut f64)
+                }
+                [CallArg::Ptr(a), CallArg::Usize(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, usize);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::Ptr(a), CallArg::I32(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, i32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::Ptr(a), CallArg::Usize(b), CallArg::U32(c)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, usize, u32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b, *c)
+                }
+                [CallArg::Ptr(a), CallArg::Ptr(b), CallArg::I32(c)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, *mut c_void, i32);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b, *c)
                 }
                 [CallArg::Ptr(a), CallArg::Usize(b), CallArg::Usize(c), CallArg::Ptr(d)] => {
-                    let func = std::mem::transmute::<*mut c_void, VoidFunc4>(func_ptr);
-                    func(*a, *b, *c, *d);
+                    type Func = unsafe extern "C" fn(*mut c_void, usize, usize, *mut c_void);
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b, *c, *d)
                 }
                 _ => return Err(unsupported_signature(return_type, args)),
             }
+        }};
+    }
+
+    match return_type {
+        Type::Void => {
+            call_void!();
             Ok(None)
         }
         Type::I8 => Ok(Some(Value::I8(call_with_return!(i8)))),

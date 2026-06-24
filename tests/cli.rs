@@ -101,3 +101,22 @@ fn supports_u64_return_values() {
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "3");
 }
+
+#[test]
+fn supports_non_qsort_void_functions() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("bzero")
+        .arg("@4u8:1,2,3,4")
+        .arg("usize:4")
+        .arg(":void")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("[0] 4u8 = [0x00, 0x00, 0x00, 0x00]"));
+}
