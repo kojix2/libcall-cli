@@ -8,6 +8,7 @@ mod types;
 
 use anyhow::Result;
 use clap::Parser;
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "libcall")]
@@ -22,17 +23,13 @@ struct Args {
     #[arg(short = 'L', value_name = "PATH")]
     lib_paths: Vec<String>,
 
-    /// Load call specification from YAML file
+    /// Load call specification from JSON or YAML file
     #[arg(long, value_name = "FILE")]
-    yaml: Option<String>,
+    spec: Option<String>,
 
-    /// Load call specification from JSON file
-    #[arg(long, value_name = "FILE")]
-    json: Option<String>,
-
-    /// Output format: json, yaml, or human (default)
+    /// Result format: json, yaml, or human (default)
     #[arg(long, value_name = "FORMAT")]
-    output: Option<String>,
+    format: Option<String>,
 
     /// Show verbose information
     #[arg(long)]
@@ -81,13 +78,31 @@ fn main() -> Result<()> {
         eprintln!("libcall v2.0.0");
     }
 
-    let (library_path, function, func_args) = if args.lib_name.is_some() {
+    let (lib_name, library_path, function, func_args) = if let Some(spec_path) =
+        args.spec.as_deref()
+    {
+        if args.lib_name.is_some() || !args.positional.is_empty() {
+            return Err(anyhow::anyhow!(
+                "--spec cannot be combined with -l or positional call arguments"
+            ));
+        }
+
+        let spec = file_input::load_spec_file(Path::new(spec_path))?;
+        let (spec_lib_name, spec_library_path) = split_spec_library(&spec.library);
+        (
+            spec_lib_name,
+            spec_library_path,
+            spec.function.clone(),
+            file_input::spec_arg_tokens(&spec)?,
+        )
+    } else if args.lib_name.is_some() {
         if args.positional.is_empty() {
             return Err(anyhow::anyhow!(
                 "Function name is required\n\nUsage: libcall -l<NAME> <FUNCTION> [ARGS...] [:RETURN_TYPE]"
             ));
         }
         (
+            args.lib_name.clone(),
             None,
             args.positional[0].clone(),
             args.positional[1..].to_vec(),
@@ -99,6 +114,7 @@ fn main() -> Result<()> {
             ));
         }
         (
+            None,
             Some(args.positional[0].clone()),
             args.positional[1].clone(),
             args.positional[2..].to_vec(),
@@ -106,7 +122,7 @@ fn main() -> Result<()> {
     };
 
     let lib_path = library::resolve_library(
-        args.lib_name.as_deref(),
+        lib_name.as_deref(),
         library_path.as_deref(),
         &args.lib_paths,
     )?;
@@ -143,8 +159,8 @@ fn main() -> Result<()> {
 
     let result = ffi::execute_call(func_ptr, &mut call_spec.args, call_spec.return_type)?;
 
-    match args.output.as_deref() {
-        Some("json") => {
+    match args.format.as_deref().unwrap_or("human") {
+        "json" => {
             output::print_result_json(
                 &result,
                 &lib_path.display().to_string(),
@@ -152,7 +168,7 @@ fn main() -> Result<()> {
                 &call_spec.args,
             );
         }
-        Some("yaml") => {
+        "yaml" => {
             output::print_result_yaml(
                 &result,
                 &lib_path.display().to_string(),
@@ -160,10 +176,25 @@ fn main() -> Result<()> {
                 &call_spec.args,
             );
         }
-        _ => {
+        "human" => {
             output::print_result_human(&result, &function);
         }
+        format => return Err(anyhow::anyhow!("Unknown format: {}", format)),
     }
 
     Ok(())
+}
+
+fn split_spec_library(library: &str) -> (Option<String>, Option<String>) {
+    let library = library.trim();
+
+    if let Some(name) = library.strip_prefix("-l") {
+        return (Some(name.to_string()), None);
+    }
+
+    if library.contains('/') || library.contains('\\') || library.contains('.') {
+        (None, Some(library.to_string()))
+    } else {
+        (Some(library.to_string()), None)
+    }
 }

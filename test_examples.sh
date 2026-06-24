@@ -22,7 +22,7 @@ echo "4. Output parameters (modf):"
 echo
 
 echo "5. JSON output:"
-./target/release/libcall --output json -lm sqrt 16.0 :f64
+./target/release/libcall --format json -lm sqrt 16.0 :f64
 echo
 
 echo "6. Dry run mode:"

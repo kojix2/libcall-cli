@@ -12,7 +12,7 @@ Call C functions from shared libraries directly from the command line.
 - **Rust-Style Types**: Concise type names (`i32`, `f64`, `usize`, etc.)
 - **Array Support**: Input, output, and inout arrays with length-prefix notation
 - **Output Parameters**: Dedicated `@` prefix for output parameters
-- **Multiple Output Formats**: Human-readable, JSON, and YAML (planned)
+- **Multiple Output Formats**: Human-readable, JSON, and YAML
 
 ## Installation
 
@@ -62,16 +62,10 @@ libcall [OPTIONS] <LIBRARY> <FUNCTION> [ARGS...] [:RETURN_TYPE]
 
 | Option              | Description                                  | Example               |
 | ------------------- | -------------------------------------------- | --------------------- |
-| `-l NAME` or `-lNAME` | Specify library name (searches for `libNAME`)| `-lm`, `-lc`     |
+| `-l NAME` or `-lNAME` | Specify library name (searches for `libNAME`)| `-lm`, `-lSystem`     |
 | `-L PATH` or `-LPATH` | Add library search path (multiple allowed)   | `-L/opt/lib`         |
-
-### Options
-
-| Option              | Description                                  | Example               |
-| ------------------- | -------------------------------------------- | --------------------- |
-| `-l NAME`           | Specify library name (searches for `libNAME`)| `-lm`, `-lSystem`     |
-| `-L PATH`           | Add library search path (multiple allowed)   | `-L /opt/lib`         |
-| `--output FORMAT`   | Output format: json, yaml, or human (default)| `--output json`       |
+| `--spec FILE`       | Load call specification from `.json`, `.yaml`, or `.yml` | `--spec call.yaml` |
+| `--format FORMAT`   | Result format: json, yaml, or human (default)| `--format json`       |
 | `--verbose`         | Show verbose information                     | `--verbose`           |
 | `--dry-run`         | Parse arguments without executing            | `--dry-run`           |
 | `-h, --help`        | Show help message                            | `--help`              |
@@ -348,7 +342,7 @@ libcall -lSystem puts "Hello from macOS" :i32
 ### JSON Output
 
 ```bash
-libcall --output json -lm sqrt 16.0 :f64
+libcall --format json -lm sqrt 16.0 :f64
 ```
 
 Output:
@@ -373,7 +367,7 @@ Output:
 ### YAML Output
 
 ```bash
-libcall --output yaml -l m sqrt 16.0 :f64
+libcall --format yaml -l m sqrt 16.0 :f64
 ```
 
 Output:
@@ -388,6 +382,14 @@ return:
   type: f64
   value: 4.0
 ```
+
+### Spec File Input
+
+```bash
+libcall --spec call.yaml --format json
+```
+
+`--spec` accepts `.json`, `.yaml`, and `.yml` files. The file extension determines the parser.
 
 ### Dry Run Mode
 
