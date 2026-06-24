@@ -496,7 +496,7 @@ MIT License - see LICENSE file for details.
 
 ## Version
 
-Current version: **2.0.0**
+Current version: **2.0.0** (from `Cargo.toml`)
 
 ## Authors
 

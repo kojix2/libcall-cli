@@ -12,7 +12,7 @@ use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "libcall")]
-#[command(version = "2.0.0")]
+#[command(version)]
 #[command(about = "Call C functions from shared libraries directly from the command line", long_about = None)]
 struct Args {
     /// Library name (e.g., -lm for libm)
@@ -75,7 +75,7 @@ fn main() -> Result<()> {
     let args = Args::parse_from(args_vec);
 
     if args.verbose {
-        eprintln!("libcall v2.0.0");
+        eprintln!("libcall v{}", env!("CARGO_PKG_VERSION"));
     }
 
     let (lib_name, library_path, function, func_args) = if let Some(spec_path) =
