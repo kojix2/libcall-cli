@@ -10,120 +10,116 @@ pub struct CallResult {
     pub output_values: Vec<(usize, Value)>,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum CallArg {
+    I8(i8),
+    U8(u8),
+    I16(i16),
+    U16(u16),
+    I32(i32),
+    U32(u32),
+    I64(i64),
+    U64(u64),
+    Isize(isize),
+    Usize(usize),
+    F32(f32),
+    F64(f64),
+    Ptr(*mut c_void),
+}
+
+impl CallArg {
+    fn pointer(self) -> Result<*mut c_void> {
+        match self {
+            CallArg::Ptr(ptr) => Ok(ptr),
+            other => Err(anyhow!(
+                "Expected pointer argument, got {}",
+                other.type_name()
+            )),
+        }
+    }
+
+    fn type_name(self) -> &'static str {
+        match self {
+            CallArg::I8(_) => "i8",
+            CallArg::U8(_) => "u8",
+            CallArg::I16(_) => "i16",
+            CallArg::U16(_) => "u16",
+            CallArg::I32(_) => "i32",
+            CallArg::U32(_) => "u32",
+            CallArg::I64(_) => "i64",
+            CallArg::U64(_) => "u64",
+            CallArg::Isize(_) => "isize",
+            CallArg::Usize(_) => "usize",
+            CallArg::F32(_) => "f32",
+            CallArg::F64(_) => "f64",
+            CallArg::Ptr(_) => "ptr",
+        }
+    }
+}
+
 pub fn execute_call(
     func_ptr: *mut c_void,
     args: &mut [Argument],
     return_type: Type,
 ) -> Result<CallResult> {
-    let mut arg_ptrs: Vec<*mut c_void> = Vec::new();
+    let mut call_args: Vec<CallArg> = Vec::new();
     let mut arg_storage: Vec<Box<dyn std::any::Any>> = Vec::new();
     let mut cstrings: Vec<CString> = Vec::new();
-    let mut arg_is_ptr_for_call: Vec<bool> = Vec::new();
     let mut callback_storage: Vec<Box<LuaCallback>> = Vec::new();
 
     for arg in args.iter_mut() {
         match &mut arg.value {
             Value::I8(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(
-                    arg_storage.last().unwrap().downcast_ref::<i8>().unwrap() as *const i8
-                        as *mut c_void,
-                );
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::I8(*v));
             }
             Value::U8(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(
-                    arg_storage.last().unwrap().downcast_ref::<u8>().unwrap() as *const u8
-                        as *mut c_void,
-                );
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::U8(*v));
             }
             Value::I16(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<i16>().unwrap()
-                    as *const i16 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::I16(*v));
             }
             Value::U16(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<u16>().unwrap()
-                    as *const u16 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::U16(*v));
             }
             Value::I32(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<i32>().unwrap()
-                    as *const i32 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::I32(*v));
             }
             Value::U32(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<u32>().unwrap()
-                    as *const u32 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::U32(*v));
             }
             Value::I64(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<i64>().unwrap()
-                    as *const i64 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::I64(*v));
             }
             Value::U64(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<u64>().unwrap()
-                    as *const u64 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::U64(*v));
             }
             Value::Isize(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<isize>().unwrap()
-                    as *const isize as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::Isize(*v));
             }
             Value::Usize(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<usize>().unwrap()
-                    as *const usize as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::Usize(*v));
             }
             Value::F32(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<f32>().unwrap()
-                    as *const f32 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::F32(*v));
             }
             Value::F64(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(arg_storage.last().unwrap().downcast_ref::<f64>().unwrap()
-                    as *const f64 as *mut c_void);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::F64(*v));
             }
             Value::Ptr(v) => {
-                arg_storage.push(Box::new(*v));
-                arg_ptrs.push(
-                    arg_storage
-                        .last()
-                        .unwrap()
-                        .downcast_ref::<*mut c_void>()
-                        .unwrap() as *const *mut c_void as *mut c_void,
-                );
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::Ptr(*v));
             }
             Value::CStr(s) => {
                 let cstr = CString::new(s.as_str())?;
                 let ptr = cstr.as_ptr() as *mut c_void;
                 cstrings.push(cstr);
-                arg_ptrs.push(ptr);
-                arg_is_ptr_for_call.push(false);
+                call_args.push(CallArg::Ptr(ptr));
             }
             Value::Array {
                 elem_type, values, ..
             } => {
                 let ptr = create_array_storage(*elem_type, values)?;
                 arg_storage.push(Box::new(ptr));
-                arg_ptrs.push(ptr);
-                arg_is_ptr_for_call.push(true);
+                call_args.push(CallArg::Ptr(ptr));
             }
             Value::Callback { signature, body } => {
                 let callback = Box::new(LuaCallback::new(signature.clone(), body.clone())?);
@@ -136,14 +132,12 @@ pub fn execute_call(
                 let wrapper_ptr = callback.get_c_wrapper();
                 callback_storage.push(callback);
 
-                arg_ptrs.push(wrapper_ptr);
-                arg_is_ptr_for_call.push(true);
+                call_args.push(CallArg::Ptr(wrapper_ptr));
             }
         }
     }
 
-    let return_value =
-        unsafe { call_function_dynamic(func_ptr, &arg_ptrs, &arg_is_ptr_for_call, return_type)? };
+    let return_value = unsafe { call_function_dynamic(func_ptr, &call_args, return_type)? };
 
     unsafe {
         clear_global_callback();
@@ -156,7 +150,7 @@ pub fn execute_call(
                 elem_type, values, ..
             } = &arg.value
             {
-                let ptr = arg_ptrs[idx];
+                let ptr = call_args[idx].pointer()?;
                 let output_array = read_array_from_ptr(ptr, *elem_type, values.len())?;
                 output_values.push((idx, output_array));
             }
@@ -252,52 +246,97 @@ unsafe fn read_value_from_ptr(ptr: *mut c_void, ty: Type) -> Result<Value> {
 
 unsafe fn call_function_dynamic(
     func_ptr: *mut c_void,
-    args: &[*mut c_void],
-    arg_is_ptr: &[bool],
+    args: &[CallArg],
     return_type: Type,
 ) -> Result<Option<Value>> {
     match return_type {
         Type::Void => {
             type VoidFunc0 = unsafe extern "C" fn();
+            type VoidFunc1Ptr = unsafe extern "C" fn(*mut c_void);
             type VoidFunc4 = unsafe extern "C" fn(*mut c_void, usize, usize, *mut c_void);
 
-            match args.len() {
-                0 => {
+            match args {
+                [] => {
                     let func = std::mem::transmute::<*mut c_void, VoidFunc0>(func_ptr);
                     func();
                 }
-                4 => {
-                    let func = std::mem::transmute::<*mut c_void, VoidFunc4>(func_ptr);
-                    func(
-                        args[0],
-                        *(args[1] as *const usize),
-                        *(args[2] as *const usize),
-                        args[3],
-                    );
+                [CallArg::Ptr(a)] => {
+                    let func = std::mem::transmute::<*mut c_void, VoidFunc1Ptr>(func_ptr);
+                    func(*a);
                 }
-                _ => return Err(anyhow!("Unsupported argument count for void return")),
+                [CallArg::Ptr(a), CallArg::Usize(b), CallArg::Usize(c), CallArg::Ptr(d)] => {
+                    let func = std::mem::transmute::<*mut c_void, VoidFunc4>(func_ptr);
+                    func(*a, *b, *c, *d);
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
             }
             Ok(None)
         }
         Type::I32 => {
             type I32Func0 = unsafe extern "C" fn() -> i32;
-            type I32Func1 = unsafe extern "C" fn(*mut c_void) -> i32;
-            type I32Func2 = unsafe extern "C" fn(*mut c_void, *mut c_void) -> i32;
-
-            let result = match args.len() {
-                0 => {
-                    let func = std::mem::transmute::<*mut c_void, I32Func0>(func_ptr);
-                    func()
+            let result = match args {
+                [] => std::mem::transmute::<*mut c_void, I32Func0>(func_ptr)(),
+                [CallArg::I8(a)] => {
+                    type Func = unsafe extern "C" fn(i8) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
                 }
-                1 => {
-                    let func = std::mem::transmute::<*mut c_void, I32Func1>(func_ptr);
-                    func(args[0])
+                [CallArg::U8(a)] => {
+                    type Func = unsafe extern "C" fn(u8) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
                 }
-                2 => {
-                    let func = std::mem::transmute::<*mut c_void, I32Func2>(func_ptr);
-                    func(args[0], args[1])
+                [CallArg::I16(a)] => {
+                    type Func = unsafe extern "C" fn(i16) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
                 }
-                _ => return Err(anyhow!("Too many arguments")),
+                [CallArg::U16(a)] => {
+                    type Func = unsafe extern "C" fn(u16) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::I32(a)] => {
+                    type Func = unsafe extern "C" fn(i32) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U32(a)] => {
+                    type Func = unsafe extern "C" fn(u32) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::I64(a)] => {
+                    type Func = unsafe extern "C" fn(i64) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::U64(a)] => {
+                    type Func = unsafe extern "C" fn(u64) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Isize(a)] => {
+                    type Func = unsafe extern "C" fn(isize) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Usize(a)] => {
+                    type Func = unsafe extern "C" fn(usize) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Ptr(a)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Ptr(a), CallArg::Ptr(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, *mut c_void) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::I32(a), CallArg::I32(b)] => {
+                    type Func = unsafe extern "C" fn(i32, i32) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::Ptr(a), CallArg::Usize(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, usize) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                [CallArg::Ptr(a), CallArg::I32(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, i32) -> i32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
             };
             Ok(Some(Value::I32(result)))
         }
@@ -306,57 +345,87 @@ unsafe fn call_function_dynamic(
             type F64Func2ValVal = unsafe extern "C" fn(f64, f64) -> f64;
             type F64Func2ValPtr = unsafe extern "C" fn(f64, *mut f64) -> f64;
 
-            let result = match args.len() {
-                1 => {
+            let result = match args {
+                [CallArg::F64(a)] => {
                     let func = std::mem::transmute::<*mut c_void, F64Func1Val>(func_ptr);
-                    let val = *(args[0] as *const f64);
-                    func(val)
+                    func(*a)
                 }
-                2 => {
-                    let val1 = *(args[0] as *const f64);
-
-                    if arg_is_ptr[1] {
-                        let func = std::mem::transmute::<*mut c_void, F64Func2ValPtr>(func_ptr);
-                        func(val1, args[1] as *mut f64)
-                    } else {
-                        let func = std::mem::transmute::<*mut c_void, F64Func2ValVal>(func_ptr);
-                        let val2 = *(args[1] as *const f64);
-                        func(val1, val2)
-                    }
+                [CallArg::F64(a), CallArg::F64(b)] => {
+                    let func = std::mem::transmute::<*mut c_void, F64Func2ValVal>(func_ptr);
+                    func(*a, *b)
                 }
-                _ => return Err(anyhow!("Unsupported argument count for f64 return")),
+                [CallArg::F64(a), CallArg::Ptr(b)] => {
+                    let func = std::mem::transmute::<*mut c_void, F64Func2ValPtr>(func_ptr);
+                    func(*a, *b as *mut f64)
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
             };
             Ok(Some(Value::F64(result)))
         }
-        Type::Usize => {
-            type UsizeFunc1 = unsafe extern "C" fn(*mut c_void) -> usize;
-
-            let result = match args.len() {
-                1 => {
-                    let func = std::mem::transmute::<*mut c_void, UsizeFunc1>(func_ptr);
-                    func(args[0])
+        Type::F32 => {
+            let result = match args {
+                [CallArg::F32(a)] => {
+                    type Func = unsafe extern "C" fn(f32) -> f32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
                 }
-                _ => return Err(anyhow!("Unsupported argument count for usize return")),
+                [CallArg::F32(a), CallArg::F32(b)] => {
+                    type Func = unsafe extern "C" fn(f32, f32) -> f32;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
+            };
+            Ok(Some(Value::F32(result)))
+        }
+        Type::Usize => {
+            let result = match args {
+                [CallArg::Ptr(a)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void) -> usize;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a)
+                }
+                [CallArg::Ptr(a), CallArg::Ptr(b)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b)
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
             };
             Ok(Some(Value::Usize(result)))
+        }
+        Type::Isize => {
+            let result = match args {
+                [CallArg::Ptr(a), CallArg::Usize(b), CallArg::U32(c)] => {
+                    type Func = unsafe extern "C" fn(*mut c_void, usize, u32) -> isize;
+                    std::mem::transmute::<*mut c_void, Func>(func_ptr)(*a, *b, *c)
+                }
+                _ => return Err(unsupported_signature(return_type, args)),
+            };
+            Ok(Some(Value::Isize(result)))
         }
         Type::CStr => {
             type CStrFunc1 = unsafe extern "C" fn(*mut c_void) -> *const std::ffi::c_char;
 
-            let result = match args.len() {
-                1 => {
+            let result = match args {
+                [CallArg::Ptr(a)] => {
                     let func = std::mem::transmute::<*mut c_void, CStrFunc1>(func_ptr);
-                    let ptr = func(args[0]);
+                    let ptr = func(*a);
                     if ptr.is_null() {
                         String::new()
                     } else {
                         std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned()
                     }
                 }
-                _ => return Err(anyhow!("Unsupported argument count for cstr return")),
+                _ => return Err(unsupported_signature(return_type, args)),
             };
             Ok(Some(Value::CStr(result)))
         }
         _ => Err(anyhow!("Unsupported return type: {}", return_type)),
     }
+}
+
+fn unsupported_signature(return_type: Type, args: &[CallArg]) -> anyhow::Error {
+    let arg_types = args
+        .iter()
+        .map(|arg| arg.type_name())
+        .collect::<Vec<_>>()
+        .join(", ");
+    anyhow!("Unsupported signature: ({}) -> {}", arg_types, return_type)
 }
