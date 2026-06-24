@@ -168,8 +168,11 @@ pub fn infer_type(value: &str) -> Result<Type> {
         return Ok(Type::I32);
     }
 
-    if value.parse::<i64>().is_ok() {
-        return Ok(Type::I32);
+    if let Ok(integer) = value.parse::<i64>() {
+        if i32::try_from(integer).is_ok() {
+            return Ok(Type::I32);
+        }
+        return Ok(Type::I64);
     }
 
     if value.parse::<f64>().is_ok() {

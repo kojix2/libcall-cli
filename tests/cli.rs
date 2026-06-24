@@ -92,6 +92,24 @@ fn supports_i64_return_values() {
 }
 
 #[test]
+fn infers_i64_for_large_integer_literals() {
+    let output = libcall()
+        .arg(format!("-l{}", libc_name()))
+        .arg("labs")
+        .arg("3000000000")
+        .arg(":isize")
+        .output()
+        .expect("failed to run libcall");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "3000000000");
+}
+
+#[test]
 fn supports_isize_return_values() {
     let output = libcall()
         .arg(format!("-l{}", libc_name()))
